@@ -38,10 +38,7 @@ class BPMAnalyzer:
         self.log_view_button = tk.Button(frame, text="View BPM Log", command=self.view_bpm_log, bg='#bd3254', fg='white', bd=4, relief=tk.RAISED)
         self.log_view_button.grid(row=2, column=0, columnspan=2, pady=10)
 
-        self.on_resize_handler = lambda event, log_text=None: self.on_resize(event, log_text)
-        
-        self.average_bpm_label = tk.Label(frame, text="Average BPM: N/A", bg='#181818', fg='#bd3254', bd=4)  # Set background and text color
-        self.average_bpm_label.grid(row=4, column=0, columnspan=2, pady=10)        
+        self.on_resize_handler = lambda event, log_text=None: self.on_resize(event, log_text)   
 
 
     def select_file(self):
@@ -63,37 +60,22 @@ class BPMAnalyzer:
 
             plt.figure(figsize=(12, 6), facecolor='#323232')
 
-            n_fft = 2048
-            hop_length = int(librosa.time_to_samples(1./100, sr=self.sr))
-            n_mels = 80
-            fmin = 27.5
-            fmax = 17000.
-
-            S = librosa.feature.melspectrogram(
-            self.y,
-            sr=self.sr,
-            n_fft=n_fft,
-            hop_length=hop_length,
-            fmin=fmin,
-            fmax=fmax,
-            n_mels=n_mels
-            )
-
-
         # Linear-frequency graph
             plt.subplot(2, 1, 1)
-            D_linear = librosa.amplitude_to_db(np.abs(librosa.stft(self.y, n_fft=1024)), ref=np.max)
+            D_linear = librosa.amplitude_to_db(np.abs(librosa.stft(self.y, n_fft=2048)), ref=np.max)
             librosa.display.specshow(D_linear, y_axis='linear', x_axis='time', sr=self.sr)
             plt.title('Linear-Frequency Power Spectrogram', color='#bd3254')
-            plt.colorbar(format='%+2.0f dB')
 
+        # Logarithmic-frequency graph
             plt.subplot(2, 1, 2)
-            D_wave = librosa.amplitude_to_db(np.abs(librosa.stft(self.y, n_fft=1024)), ref=np.max)
-            plt.plot(librosa.times_like(D_wave), D_wave[0], color='#323232')
-            plt.title('Waveform with Onsets', color='#bd3254')  # Update the title
+            D_log = librosa.amplitude_to_db(np.abs(librosa.stft(self.y, n_fft=2048)), ref=np.max)
+            librosa.display.specshow(D_log, y_axis='log', x_axis='time', sr=self.sr)
+            plt.title('Logarithmic-Frequency Power Spectrogram', color='#bd3254')
 
-            plt.tight_layout(pad=2)
+            plt.tight_layout(pad=2)  # Increase the pad value for better spacing
             plt.show()
+
+
 
         else:
             print("Audio signal is too short for analysis.")
@@ -145,6 +127,20 @@ class BPMAnalyzer:
         # Insert BPM log into the text widget
         for i, (start_time, bpm) in enumerate(zip(self.segment_starts, self.estimated_bpm)):
             log_text.insert(tk.END, f"Segment {i + 1}: Start Time = {start_time:.2f}s, Estimated BPM = {bpm:.2f}\n")
+
+    def waveform(self):
+        # Create a new window for waveform view
+        waveform_window = tk.Toplevel(self.root)
+        waveform_window.title("Waveform View")
+
+        waveform_window.bind("<Configure>", self.on_resize_handler)
+
+        # Create a text widget to display the waveform
+        waveform_text = Text(waveform_window, bg="#323232", fg="#bd3254", highlightbackground="#323232")
+        plt.figure(figsize=(12, 6), facecolor='#323232')
+        plt.subplot(2, 1, 1)
+        librosa.display.waveshow(self.y, sr=self.sr)
+        waveform_text.pack(fill=tk.BOTH, expand=True)
 
     def on_resize(self, event, log_text):
         # Resize the text widget to fit the window
